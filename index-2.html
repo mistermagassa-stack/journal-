@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Journal Intelligent</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1410;
+    --paper: #f5f0e8;
+    --paper2: #ede8dc;
+    --gold: #c9964a;
+    --gold-light: #e8b96a;
+    --rust: #a84a2a;
+    --sage: #5a7a5a;
+    --muted: #8a7a6a;
+    --card: #faf6ee;
+    --shadow: rgba(26,20,16,0.12);
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    padding-bottom: 80px;
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(201,150,74,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(90,122,90,0.06) 0%, transparent 60%);
+  }
+  .header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 18px 20px 14px;
+    position: sticky; top: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
+  }
+  .header-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    letter-spacing: 0.01em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .header-title span { color: var(--gold-light); }
+  .api-badge {
+    font-size: 0.65rem;
+    background: var(--gold);
+    color: var(--ink);
+    padding: 3px 8px;
+    border-radius: 20px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .api-badge.connected { background: var(--sage); color: white; }
+  .tabs {
+    display: flex;
+    background: var(--paper2);
+    border-bottom: 1.5px solid rgba(26,20,16,0.1);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    flex: 1; min-width: 80px;
+    padding: 12px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-align: center;
+    cursor: pointer;
+    color: var(--muted);
+    border-bottom: 2.5px solid transparent;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); background: var(--paper); }
+  .panel { display: none; padding: 16px; }
+  .panel.active { display: block; }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 1px 6px var(--shadow);
+    border: 1px solid rgba(201,150,74,0.15);
+  }
+  .card-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--ink);
+    display: flex; align-items: center; gap: 8px;
+  }
+  textarea, input[type=text], input[type=password] {
+    width: 100%;
+    border: 1.5px solid rgba(201,150,74,0.3);
+    border-radius: 10px;
+    padding: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    background: white;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+    resize: vertical;
+  }
+  textarea:focus, input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,150,74,0.12); }
+  textarea { min-height: 120px; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    padding: 11px 20px;
+    border-radius: 10px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--ink); color: var(--paper); width: 100%; margin-top: 10px; }
+  .btn-primary:active { transform: scale(0.98); }
+  .btn-gold { background: var(--gold); color: var(--ink); width: 100%; margin-top: 10px; font-weight: 600; }
+  .btn-ghost { background: transparent; border: 1.5px solid var(--gold); color: var(--gold); padding: 8px 16px; font-size: 0.8rem; }
+  .btn-danger { background: #c0392b; color: white; border: none; flex: 1; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .date-badge {
+    font-size: 0.7rem;
+    color: var(--muted);
+    background: var(--paper2);
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+
+  /* ENTRY LIST */
+  .entry-item {
+    background: white;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--gold);
+    box-shadow: 0 1px 4px var(--shadow);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .entry-item:active { transform: translateX(2px); }
+  .entry-item .entry-date { font-size: 0.7rem; color: var(--muted); padding-right: 32px; }
+  .entry-item .entry-preview {
+    font-size: 0.85rem; color: var(--ink); margin-top: 4px; line-height: 1.4;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  }
+  .entry-item .entry-tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
+  .tag { font-size: 0.65rem; padding: 2px 8px; border-radius: 20px; background: rgba(201,150,74,0.15); color: var(--gold); font-weight: 500; }
+  .tag.number { background: rgba(90,122,90,0.15); color: var(--sage); }
+
+  /* DELETE BTN ON ENTRY CARD */
+  .entry-delete-btn {
+    position: absolute; top: 10px; right: 8px;
+    background: none; border: none;
+    font-size: 0.85rem; cursor: pointer;
+    color: var(--muted); padding: 3px 7px;
+    border-radius: 6px; line-height: 1;
+    transition: all 0.15s;
+  }
+  .entry-delete-btn:active { background: rgba(168,74,42,0.12); color: var(--rust); }
+
+  /* CHAT */
+  .chat-messages {
+    min-height: 200px; max-height: 55vh;
+    overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+    margin-bottom: 14px; padding: 4px;
+  }
+  .msg { padding: 10px 14px; border-radius: 12px; font-size: 0.85rem; line-height: 1.5; max-width: 92%; }
+  .msg-user { background: var(--ink); color: var(--paper); align-self: flex-end; border-bottom-right-radius: 4px; }
+  .msg-ai {
+    background: white; color: var(--ink);
+    align-self: flex-start; border-bottom-left-radius: 4px;
+    border: 1px solid rgba(201,150,74,0.2);
+    box-shadow: 0 1px 4px var(--shadow);
+  }
+  .msg-ai .msg-label { font-size: 0.65rem; color: var(--gold); font-weight: 600; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .typing-dots span { display: inline-block; width: 6px; height: 6px; background: var(--gold); border-radius: 50%; animation: bounce 1s infinite; margin: 0 2px; }
+  .typing-dots span:nth-child(2) { animation-delay: 0.15s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.3s; }
+  @keyframes bounce { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .stat-box { background: white; border-radius: 10px; padding: 14px 12px; text-align: center; border: 1px solid rgba(201,150,74,0.15); box-shadow: 0 1px 4px var(--shadow); }
+  .stat-num { font-family: 'Playfair Display', serif; font-size: 1.8rem; color: var(--gold); line-height: 1; }
+  .stat-label { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+  .insight-item { background: white; border-radius: 10px; padding: 12px; margin-bottom: 8px; border-left: 3px solid var(--sage); font-size: 0.83rem; line-height: 1.5; }
+  .insight-item strong { color: var(--sage); }
+
+  /* SETTINGS */
+  .setting-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(201,150,74,0.1); font-size: 0.85rem; }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-label { color: var(--muted); font-size: 0.75rem; }
+
+  /* MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(26,20,16,0.7); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--card); border-radius: var(--radius); padding: 20px; width: 100%; max-width: 440px; box-shadow: 0 8px 40px rgba(0,0,0,0.4); }
+  .modal h3 { font-family: 'Playfair Display', serif; margin-bottom: 14px; color: var(--ink); }
+  .modal p { font-size: 0.82rem; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .confirm-btns { display: flex; gap: 8px; margin-top: 14px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 10px 20px; border-radius: 20px; font-size: 0.8rem; z-index: 300; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  .entry-full { max-height: 70vh; overflow-y: auto; font-size: 0.85rem; line-height: 1.6; color: var(--ink); white-space: pre-wrap; margin: 10px 0; }
+  .spinner { width: 18px; height: 18px; border: 2px solid rgba(201,150,74,0.3); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .section-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 600; margin: 16px 0 8px; }
+  .empty-state { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 0.85rem; }
+  .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .chat-input-row { display: flex; gap: 8px; }
+  .chat-input-row input { flex: 1; min-height: auto; resize: none; }
+  .chat-send-btn { background: var(--gold); color: var(--ink); border: none; border-radius: 10px; padding: 11px 16px; font-size: 1rem; cursor: pointer; flex-shrink: 0; transition: all 0.2s; }
+  .chat-send-btn:active { transform: scale(0.95); }
+  @media (max-width: 380px) { .tab { font-size: 0.7rem; padding: 10px 6px; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-title">📓 Journal <span>Intelligent</span></div>
+  <div class="api-badge" id="apiStatusBadge" onclick="openApiModal()">⚙ Configurer</div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('write')">✍️ Écrire</div>
+  <div class="tab" onclick="switchTab('ask')">💬 Demander</div>
+  <div class="tab" onclick="switchTab('entries')">📚 Entrées</div>
+  <div class="tab" onclick="switchTab('stats')">📊 Stats</div>
+  <div class="tab" onclick="switchTab('settings')">⚙ Config</div>
+</div>
+
+<!-- PANEL: WRITE -->
+<div class="panel active" id="panel-write">
+  <div class="card">
+    <div class="card-title"><span class="icon">🌙</span> Raconte ta journée</div>
+    <div class="date-badge" id="todayDate"></div>
+    <textarea id="entryText" placeholder="Ex: J'ai partagé des posts sur 5 groupes et 2 ont lu. Ensuite j'ai posté avec une image et 6 ont lu..."></textarea>
+    <div id="writeStatus" style="font-size:0.75rem;color:var(--muted);margin-top:6px;display:none;"></div>
+    <button class="btn btn-gold" onclick="saveEntry()">
+      <span id="saveBtnText">💾 Enregistrer l'entrée</span>
+    </button>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">🧠</span> Résumé IA automatique</div>
+    <p style="font-size:0.8rem;color:var(--muted);line-height:1.5;">Après enregistrement, l'IA extrait les chiffres clés, les sujets et génère un résumé structuré.</p>
+    <div id="lastSummary" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- PANEL: ASK -->
+<div class="panel" id="panel-ask">
+  <div class="card">
+    <div class="card-title"><span class="icon">💬</span> Pose une question</div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:12px;">Demande-moi n'importe quoi sur tes expériences ou apprentissages passés.</p>
+    <div class="chat-messages" id="chatMessages">
+      <div class="msg msg-ai">
+        <div class="msg-label">Journal IA</div>
+        Salut ! Je suis ton journal intelligent. Pose-moi une question sur tes journées passées — leçons apprises, chiffres, formats qui marchent. Exemples :<br><br>
+        • <em>"Qu'est-ce que j'ai remarqué quand j'ai publié avec des images ?"</em><br>
+        • <em>"Quelles leçons j'ai tirées de mes blocages ?"</em><br>
+        • <em>"Rappelle-moi ce que j'ai appris sur le storytelling."</em>
+      </div>
+    </div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ta question..." onkeypress="if(event.key==='Enter') sendChat()">
+      <button class="chat-send-btn" onclick="sendChat()">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- PANEL: ENTRIES -->
+<div class="panel" id="panel-entries">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+    <span style="font-family:'Playfair Display',serif;font-size:1rem;">Mes entrées</span>
+    <span id="entryCount" style="font-size:0.75rem;color:var(--muted);"></span>
+  </div>
+  <input type="text" id="searchInput" placeholder="🔍 Rechercher une entrée..." style="margin-bottom:12px;" oninput="filterEntries()">
+  <div id="entriesList"></div>
+</div>
+
+<!-- PANEL: STATS -->
+<div class="panel" id="panel-stats">
+  <div class="stats-grid">
+    <div class="stat-box"><div class="stat-num" id="stat-total">0</div><div class="stat-label">Entrées totales</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-streak">0</div><div class="stat-label">Jours consécutifs</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-this-week">0</div><div class="stat-label">Cette semaine</div></div>
+    <div class="stat-box"><div class="stat-num" id="stat-numbers">0</div><div class="stat-label">Sujets mémorisés</div></div>
+  </div>
+  <div class="section-title">📈 Insights & Synthèse Globale</div>
+  <div id="insightsList">
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <p>Enregistre des entrées pour générer des analyses de performances.</p>
+    </div>
+  </div>
+  <button class="btn btn-ghost" style="width:100%;margin-top:10px;" onclick="generateInsights()">🔄 Actualiser les insights</button>
+</div>
+
+<!-- PANEL: SETTINGS -->
+<div class="panel" id="panel-settings">
+  <div class="card">
+    <div class="card-title"><span class="icon">🔑</span> Clé API Gemini</div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-bottom:10px;">
+      Obtiens ta clé gratuite sur <strong>aistudio.google.com</strong> → "Get API key"
+    </p>
+    <input type="password" id="settingsApiKey" placeholder="AIzaSy...">
+    <button class="btn btn-primary" onclick="saveApiKey()">💾 Sauvegarder la clé</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">📦</span> Données</div>
+    <div class="setting-row">
+      <div>
+        <div>Entrées enregistrées</div>
+        <div class="setting-label">Stockées localement sur ton Android</div>
+      </div>
+      <span id="settingsEntryCount" style="font-weight:600;color:var(--gold);">0</span>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div>Exporter les données</div>
+        <div class="setting-label">Télécharge une sauvegarde JSON</div>
+      </div>
+      <button class="btn btn-ghost" onclick="exportData()">⬇ Export</button>
+    </div>
+    <div class="setting-row">
+      <div>
+        <div>Importer une sauvegarde</div>
+        <div class="setting-label">Restaure depuis un fichier JSON</div>
+      </div>
+      <button class="btn btn-ghost" onclick="document.getElementById('importFileInput').click()">⬆ Import</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none;" onchange="importData(event)">
+    </div>
+    <div class="setting-row">
+      <div>
+        <div>Tout effacer</div>
+        <div class="setting-label" style="color:#c0392b;">Action irréversible</div>
+      </div>
+      <button class="btn btn-ghost" style="border-color:#c0392b;color:#c0392b;" onclick="clearAllData()">🗑 Effacer</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">💡</span> Conseil sauvegarde</div>
+    <p style="font-size:0.78rem;color:var(--muted);line-height:1.6;">
+      Exporte ton journal 1x/semaine et garde le fichier dans ton Google Drive ou WhatsApp. Si tu changes de téléphone, importe ce fichier pour tout récupérer.
+    </p>
+  </div>
+</div>
+
+<!-- MODAL: API KEY -->
+<div class="modal-overlay" id="apiModal">
+  <div class="modal">
+    <h3>🔑 Clé API Gemini</h3>
+    <p>Pour activer la mémoire IA, configure ta clé Gemini API gratuite.</p>
+    <p>Obtiens-la sur <strong>aistudio.google.com</strong> (gratuit, sans carte bancaire)</p>
+    <input type="password" id="modalApiKey" placeholder="Colle ta clé ici : AIzaSy...">
+    <button class="btn btn-gold" onclick="saveApiKeyFromModal()" style="margin-top:10px;">✅ Confirmer</button>
+    <button class="btn btn-primary" onclick="closeApiModal()" style="margin-top:8px;background:var(--paper2);color:var(--ink);">Annuler</button>
+  </div>
+</div>
+
+<!-- MODAL: ENTRY DETAIL -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div id="entryModalDate" class="date-badge" style="margin-bottom:12px;"></div>
+    <div id="entryModalContent" class="entry-full"></div>
+    <div id="entryModalSummary" style="margin-top:12px;display:none;"></div>
+    <button class="btn btn-primary" onclick="closeEntryModal()" style="background:var(--paper2);color:var(--ink);margin-top:10px;">✕ Fermer</button>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRM DELETE -->
+<div class="modal-overlay" id="confirmModal">
+  <div class="modal">
+    <h3>🗑 Supprimer cette entrée ?</h3>
+    <p>Cette action est irréversible. L'entrée sera définitivement supprimée de ton journal.</p>
+    <div class="confirm-btns">
+      <button class="btn btn-primary" onclick="closeConfirmModal()" style="background:var(--paper2);color:var(--ink);">Annuler</button>
+      <button class="btn btn-danger btn" onclick="confirmDelete()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// STORAGE
+// ============================================================
+const DB = {
+  get: (k, def = null) => { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : def; } catch { return def; } },
+  set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { showToast('⚠ Stockage plein !'); } },
+  del: (k) => localStorage.removeItem(k)
+};
+
+// ============================================================
+// GEMINI API
+// ============================================================
+async function callGemini(prompt, systemPrompt = '') {
+  const key = DB.get('gemini_api_key');
+  if (!key) { showToast('⚠ Configure ta clé API d\'abord'); return null; }
+  const fullPrompt = systemPrompt ? systemPrompt + '\n\n' + prompt : prompt;
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+          generationConfig: { temperature: 0.3, maxOutputTokens: 1500 }
+        })
+      }
+    );
+    if (!res.ok) {
+      const err = await res.json();
+      showToast('⚠ ' + (err.error?.message || 'Erreur Gemini ' + res.status));
+      return null;
+    }
+    const data = await res.json();
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || null;
+  } catch { showToast('⚠ Erreur réseau'); return null; }
+}
+
+// ============================================================
+// SAVE ENTRY
+// ============================================================
+function getEntries() { return DB.get('entries', []); }
+function saveEntries(e) { DB.set('entries', e); }
+
+async function saveEntry() {
+  const text = document.getElementById('entryText').value.trim();
+  if (!text) { showToast('✏ Écris quelque chose d\'abord !'); return; }
+
+  const btnSpan = document.getElementById('saveBtnText');
+  const status = document.getElementById('writeStatus');
+  btnSpan.innerHTML = '<span class="spinner"></span> Analyse en cours...';
+  document.querySelector('.btn-gold').disabled = true;
+  status.style.display = 'block';
+  status.textContent = '🧠 L\'IA analyse ton entrée...';
+
+  const today = new Date().toISOString().split('T')[0];
+  let summary = null, tags = [];
+
+  if (DB.get('gemini_api_key')) {
+    const raw = await callGemini(
+      `Analyse cette entrée de journal. Réponds UNIQUEMENT en JSON valide sans markdown.
+Format: {"summary":"2 phrases","key_numbers":[{"label":"...","value":"..."}],"topics":["tag1","tag2"],"sentiment":"positif|neutre|négatif","action_tip":"conseil court"}
+Entrée: "${text}"`
+    );
+    if (raw) {
+      try {
+        summary = JSON.parse(raw.replace(/```json|```/g, '').trim());
+        if (summary.topics) tags = summary.topics;
+      } catch {
+        summary = { summary: raw.substring(0, 200), key_numbers: [], topics: [], sentiment: 'neutre', action_tip: '' };
+      }
+    }
+  }
+
+  const entry = { id: Date.now(), date: today, text, summary, tags: tags.slice(0, 8), createdAt: new Date().toISOString() };
+  const entries = getEntries();
+  entries.unshift(entry);
+  saveEntries(entries);
+
+  if (summary) {
+    const emoji = { positif: '😊', négatif: '😔' }[summary.sentiment] || '😐';
+    const el = document.getElementById('lastSummary');
+    el.style.display = 'block';
+    el.innerHTML = `
+      <div style="background:rgba(90,122,90,0.08);border-radius:8px;padding:12px;margin-top:10px;border-left:3px solid var(--sage);">
+        <div style="font-size:0.7rem;text-transform:uppercase;color:var(--sage);font-weight:600;margin-bottom:6px;">${emoji} Analyse IA du jour</div>
+        <div style="font-size:0.83rem;line-height:1.5;">${summary.summary || ''}</div>
+        ${summary.key_numbers?.length ? `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">${summary.key_numbers.map(n=>`<span class="tag number">📊 ${n.label}: ${n.value}</span>`).join('')}</div>` : ''}
+        ${summary.action_tip ? `<div style="margin-top:8px;font-size:0.78rem;color:var(--gold);font-style:italic;">💡 ${summary.action_tip}</div>` : ''}
+      </div>`;
+  }
+
+  document.getElementById('entryText').value = '';
+  status.textContent = summary ? '✅ Entrée enregistrée avec résumé IA !' : '✅ Entrée enregistrée.';
+  showToast('✅ Entrée enregistrée !');
+  btnSpan.textContent = '💾 Enregistrer l\'entrée';
+  document.querySelector('.btn-gold').disabled = false;
+  updateStats(); renderEntries();
+}
+
+// ============================================================
+// DELETE ENTRY (NOUVEAU)
+// ============================================================
+let pendingDeleteId = null;
+
+function askDeleteEntry(id, event) {
+  event.stopPropagation();
+  pendingDeleteId = id;
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function confirmDelete() {
+  if (!pendingDeleteId) return;
+  saveEntries(getEntries().filter(e => e.id !== pendingDeleteId));
+  pendingDeleteId = null;
+  closeConfirmModal();
+  renderEntries(); updateStats();
+  showToast('🗑 Entrée supprimée');
+}
+
+function closeConfirmModal() {
+  document.getElementById('confirmModal').classList.remove('open');
+  pendingDeleteId = null;
+}
+
+// ============================================================
+// IMPORT DATA (NOUVEAU)
+// ============================================================
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      const imported = Array.isArray(data) ? data : (data.entries || []);
+      if (!imported.length) { showToast('⚠ Fichier vide ou invalide'); return; }
+
+      const existing = getEntries();
+      const existingIds = new Set(existing.map(e => e.id));
+      const newEntries = imported.filter(e => !existingIds.has(e.id));
+      const merged = [...newEntries, ...existing].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      saveEntries(merged);
+      renderEntries(); updateStats();
+      showToast(`✅ ${newEntries.length} nouvelle(s) entrée(s) importée(s) !`);
+    } catch {
+      showToast('⚠ Fichier JSON invalide');
+    }
+    event.target.value = '';
+  };
+  reader.readAsText(file);
+}
+
+// ============================================================
+// EXPORT DATA
+// ============================================================
+function exportData() {
+  const data = { entries: getEntries(), exported: new Date().toISOString(), version: 2 };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `journal-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✅ Sauvegarde téléchargée !');
+}
+
+// ============================================================
+// CHAT
+// ============================================================
+function buildContext(question) {
+  const entries = getEntries();
+  if (!entries.length) return 'Aucune entrée disponible.';
+  const words = question.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  let scored = entries.map(e => {
+    let score = 0;
+    const txt = (e.text + ' ' + (e.tags || []).join(' ')).toLowerCase();
+    words.forEach(w => { if (txt.includes(w)) score++; });
+    return { e, score };
+  });
+  const hasMatch = scored.some(s => s.score > 0);
+  const sel = hasMatch
+    ? scored.filter(s => s.score > 0).sort((a,b) => b.score - a.score).slice(0, 15).map(s => s.e)
+    : entries.slice(0, 15);
+  return sel.map(e => `[${e.date}] ${e.text}${e.summary?.summary ? ` (Résumé: ${e.summary.summary})` : ''}`).join('\n\n');
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const question = input.value.trim();
+  if (!question) return;
+  if (!DB.get('gemini_api_key')) { addChatMessage('ai', 'Configure ta clé API Gemini d\'abord (onglet Config).'); return; }
+
+  addChatMessage('user', question);
+  input.value = '';
+
+  const typingId = 'typing-' + Date.now();
+  const chatEl = document.getElementById('chatMessages');
+  const t = document.createElement('div');
+  t.className = 'msg msg-ai'; t.id = typingId;
+  t.innerHTML = '<div class="msg-label">Journal IA</div><div class="typing-dots"><span></span><span></span><span></span></div>';
+  chatEl.appendChild(t); chatEl.scrollTop = chatEl.scrollHeight;
+
+  const context = buildContext(question);
+  const sys = `Tu es le second cerveau de l'utilisateur. Aide-le à capitaliser sur ses apprentissages.
+
+Extraits pertinents de son journal :
+---
+${context}
+---
+
+Réponds en français, directement et de façon concise. Base-toi sur les faits du journal. Si l'info est absente, dis-le clairement.`;
+
+  const response = await callGemini(question, sys);
+  document.getElementById(typingId)?.remove();
+  addChatMessage('ai', response || 'Désolé, impossible d\'interroger ta mémoire. Vérifie ta connexion ou ta clé API.');
+}
+
+function addChatMessage(role, text) {
+  const chatEl = document.getElementById('chatMessages');
+  const msg = document.createElement('div');
+  msg.className = `msg msg-${role}`;
+  if (role === 'ai') msg.innerHTML = `<div class="msg-label">Journal IA</div>${text.replace(/\n/g, '<br>')}`;
+  else msg.textContent = text;
+  chatEl.appendChild(msg);
+  chatEl.scrollTop = chatEl.scrollHeight;
+}
+
+// ============================================================
+// STATS & INSIGHTS
+// ============================================================
+function updateStats() {
+  const entries = getEntries();
+  document.getElementById('stat-total').textContent = entries.length;
+  document.getElementById('settingsEntryCount').textContent = entries.length;
+  document.getElementById('entryCount').textContent = entries.length + ' entrée' + (entries.length !== 1 ? 's' : '');
+
+  let streak = 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const dates = [...new Set(entries.map(e => e.date))].sort().reverse();
+  for (let i = 0; i < dates.length; i++) {
+    const d = new Date(dates[i] + 'T12:00:00');
+    const exp = new Date(today); exp.setDate(today.getDate() - i);
+    if (d.toDateString() === exp.toDateString()) streak++; else break;
+  }
+  document.getElementById('stat-streak').textContent = streak;
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  document.getElementById('stat-this-week').textContent = entries.filter(e => new Date(e.date) >= weekAgo).length;
+  const allTags = entries.reduce((acc, e) => acc.concat(e.tags || []), []);
+  document.getElementById('stat-numbers').textContent = new Set(allTags).size;
+}
+
+async function generateInsights() {
+  const entries = getEntries();
+  if (!entries.length) { showToast('Aucune entrée à analyser'); return; }
+  if (!DB.get('gemini_api_key')) { showToast('Configure ta clé API d\'abord'); return; }
+
+  const insightsEl = document.getElementById('insightsList');
+  insightsEl.innerHTML = '<div style="text-align:center;padding:20px;"><span class="spinner"></span> Analyse en cours...</div>';
+
+  const context = entries.slice(0, 25).map(e => `[${e.date}] ${e.text.substring(0, 200)}${e.summary ? ` -> ${e.summary.summary}` : ''}`).join('\n');
+  const raw = await callGemini(
+    `Analyse cet historique de journal. Identifie tendances, apprentissages et axes d'amélioration. Réponds UNIQUEMENT en JSON sans markdown :
+[{"insight":"observation","type":"tendance|conseil|succès"}]
+
+Données :
+${context}`
+  );
+  if (!raw) { insightsEl.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠</div><p>Erreur lors de l\'analyse.</p></div>'; return; }
+  try {
+    const insights = JSON.parse(raw.replace(/```json|```/g, '').trim());
+    const emoji = { tendance: '📈', conseil: '💡', succès: '🏆' };
+    insightsEl.innerHTML = insights.map(i => `
+      <div class="insight-item"><strong>${emoji[i.type]||'•'} ${(i.type||'ANALYSE').toUpperCase()}</strong><br>${i.insight}</div>`).join('');
+  } catch {
+    insightsEl.innerHTML = `<div class="insight-item">${raw.replace(/\n/g,'<br>')}</div>`;
+  }
+}
+
+// ============================================================
+// ENTRIES LIST
+// ============================================================
+function renderEntries(filter = '') {
+  const entries = getEntries();
+  const list = document.getElementById('entriesList');
+  const filtered = filter
+    ? entries.filter(e => e.text.toLowerCase().includes(filter.toLowerCase()) || e.tags?.some(t => t.toLowerCase().includes(filter.toLowerCase())))
+    : entries;
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-icon">📓</div><p>${filter ? 'Aucun résultat.' : 'Aucune entrée encore. Raconte ton premier débriefing !'}</p></div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(e => {
+    const preview = e.summary?.summary || e.text.substring(0, 120);
+    const tags = (e.tags || []).slice(0, 4);
+    return `<div class="entry-item" onclick="showEntry(${e.id})">
+      <button class="entry-delete-btn" onclick="askDeleteEntry(${e.id}, event)" title="Supprimer">✕</button>
+      <div class="entry-date">${formatDate(e.date)}</div>
+      <div class="entry-preview">${preview}</div>
+      ${tags.length ? `<div class="entry-tags">${tags.map(t=>`<span class="tag">${t}</span>`).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function filterEntries() { renderEntries(document.getElementById('searchInput').value); }
+
+function showEntry(id) {
+  const entry = getEntries().find(e => e.id === id);
+  if (!entry) return;
+  document.getElementById('entryModalDate').textContent = formatDate(entry.date);
+  document.getElementById('entryModalContent').textContent = entry.text;
+  const summaryEl = document.getElementById('entryModalSummary');
+  if (entry.summary) {
+    const s = entry.summary;
+    const emoji = { positif: '😊', négatif: '😔' }[s.sentiment] || '😐';
+    summaryEl.style.display = 'block';
+    summaryEl.innerHTML = `
+      <div style="background:rgba(90,122,90,0.08);border-radius:8px;padding:10px;border-left:3px solid var(--sage);">
+        <div style="font-size:0.68rem;text-transform:uppercase;color:var(--sage);font-weight:600;margin-bottom:4px;">${emoji} Résumé automatique</div>
+        <div style="font-size:0.8rem;line-height:1.5;">${s.summary || ''}</div>
+        ${s.key_numbers?.length ? `<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;">${s.key_numbers.map(n=>`<span class="tag number">📊 ${n.label}: ${n.value}</span>`).join('')}</div>` : ''}
+      </div>`;
+  } else { summaryEl.style.display = 'none'; }
+  document.getElementById('entryModal').classList.add('open');
+}
+function closeEntryModal() { document.getElementById('entryModal').classList.remove('open'); }
+
+// ============================================================
+// API KEY
+// ============================================================
+function openApiModal() {
+  const key = DB.get('gemini_api_key') || '';
+  document.getElementById('modalApiKey').value = key ? key.substring(0, 8) + '...' : '';
+  document.getElementById('apiModal').classList.add('open');
+}
+function closeApiModal() { document.getElementById('apiModal').classList.remove('open'); }
+function saveApiKeyFromModal() {
+  const key = document.getElementById('modalApiKey').value.trim();
+  if (key && !key.includes('...')) { DB.set('gemini_api_key', key); updateApiStatus(); showToast('✅ Clé API sauvegardée !'); }
+  closeApiModal();
+}
+function saveApiKey() {
+  const key = document.getElementById('settingsApiKey').value.trim();
+  if (!key) { showToast('Colle ta clé API'); return; }
+  DB.set('gemini_api_key', key);
+  document.getElementById('settingsApiKey').value = '';
+  updateApiStatus();
+  showToast('✅ Clé API sauvegardée !');
+}
+function updateApiStatus() {
+  const badge = document.getElementById('apiStatusBadge');
+  const key = DB.get('gemini_api_key');
+  badge.textContent = key ? '✓ IA Active' : '⚙ Configurer';
+  badge.className = 'api-badge' + (key ? ' connected' : '');
+}
+
+// ============================================================
+// CLEAR ALL
+// ============================================================
+function clearAllData() {
+  if (!confirm('Effacer TOUTES les entrées ? Action irréversible.')) return;
+  DB.del('entries');
+  updateStats(); renderEntries();
+  showToast('🗑 Données effacées');
+}
+
+// ============================================================
+// UI HELPERS
+// ============================================================
+function switchTab(tab) {
+  const names = ['write', 'ask', 'entries', 'stats', 'settings'];
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', names[i] === tab));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'entries') renderEntries();
+  if (tab === 'stats') updateStats();
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  document.getElementById('todayDate').textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  updateApiStatus(); updateStats(); renderEntries();
+  if (!DB.get('gemini_api_key') && !DB.get('modal_shown')) {
+    DB.set('modal_shown', true);
+    setTimeout(openApiModal, 800);
+  }
+}
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
